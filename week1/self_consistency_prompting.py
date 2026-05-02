@@ -9,7 +9,17 @@ load_dotenv()
 NUM_RUNS_TIMES = 5
 
 # TODO: Fill this in! Try to get as close to 100% correctness across all runs as possible.
-YOUR_SYSTEM_PROMPT = ""
+YOUR_SYSTEM_PROMPT = """
+Solve the word problem step by step.
+
+Example:
+A runner is on a 50-mile route. She first stops after 12 miles. Her second stop
+is 8 miles before the end. How many miles did she travel between the stops?
+First stop mile marker: 12.
+Second stop mile marker: 50 - 8 = 42.
+Distance between stops: 42 - 12 = 30.
+Answer: 30
+"""
 
 USER_PROMPT = """
 Solve this problem, then give the final answer on the last line as "Answer: <number>".
