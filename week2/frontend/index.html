@@ -24,6 +24,8 @@
     <div class="row">
       <label class="row"><input id="save_note" type="checkbox" checked /> Save as note</label>
       <button id="extract">Extract</button>
+      <button id="extract-llm">Extract LLM</button>
+      <button id="list-notes">List Notes</button>
     </div>
 
     <div class="items" id="items"></div>
@@ -31,13 +33,16 @@
     <script>
       const $ = (sel) => document.querySelector(sel);
       const itemsEl = $('#items');
-      const btn = $('#extract');
-      btn.addEventListener('click', async () => {
+      const extractBtn = $('#extract');
+      const extractLlmBtn = $('#extract-llm');
+      const listNotesBtn = $('#list-notes');
+
+      async function extractItems(endpoint) {
         const text = $('#text').value;
         const save = $('#save_note').checked;
         itemsEl.textContent = 'Extracting...';
         try {
-          const res = await fetch('/action-items/extract', {
+          const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text, save_note: save }),
@@ -65,10 +70,31 @@
           console.error(err);
           itemsEl.textContent = 'Error extracting items';
         }
-      });
+      }
+
+      async function listNotes() {
+        itemsEl.textContent = 'Loading notes...';
+        try {
+          const res = await fetch('/notes');
+          if (!res.ok) throw new Error('Request failed');
+          const notes = await res.json();
+          if (!notes || notes.length === 0) {
+            itemsEl.innerHTML = '<p class="muted">No notes found.</p>';
+            return;
+          }
+          itemsEl.innerHTML = notes.map(note => (
+            `<div class="item"><span><strong>#${note.id}</strong> ${note.content}</span><span class="muted">${note.created_at}</span></div>`
+          )).join('');
+        } catch (err) {
+          console.error(err);
+          itemsEl.textContent = 'Error loading notes';
+        }
+      }
+
+      extractBtn.addEventListener('click', () => extractItems('/action-items/extract'));
+      extractLlmBtn.addEventListener('click', () => extractItems('/action-items/extract-llm'));
+      listNotesBtn.addEventListener('click', listNotes);
 
     </script>
   </body>
   </html>
-
-

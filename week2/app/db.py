@@ -3,11 +3,26 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 from typing import Optional
+from typing import TypedDict
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "app.db"
+
+
+class NoteRecord(TypedDict):
+    id: int
+    content: str
+    created_at: str
+
+
+class ActionItemRecord(TypedDict):
+    id: int
+    note_id: Optional[int]
+    text: str
+    done: bool
+    created_at: str
 
 
 def ensure_data_directory_exists() -> None:
@@ -49,6 +64,25 @@ def init_db() -> None:
         connection.commit()
 
 
+def note_row_to_dict(row: sqlite3.Row) -> NoteRecord:
+    return {
+        "id": int(row["id"]),
+        "content": str(row["content"]),
+        "created_at": str(row["created_at"]),
+    }
+
+
+def action_item_row_to_dict(row: sqlite3.Row) -> ActionItemRecord:
+    note_id = row["note_id"]
+    return {
+        "id": int(row["id"]),
+        "note_id": None if note_id is None else int(note_id),
+        "text": str(row["text"]),
+        "done": bool(row["done"]),
+        "created_at": str(row["created_at"]),
+    }
+
+
 def insert_note(content: str) -> int:
     with get_connection() as connection:
         cursor = connection.cursor()
@@ -57,14 +91,14 @@ def insert_note(content: str) -> int:
         return int(cursor.lastrowid)
 
 
-def list_notes() -> list[sqlite3.Row]:
+def list_notes() -> list[NoteRecord]:
     with get_connection() as connection:
         cursor = connection.cursor()
         cursor.execute("SELECT id, content, created_at FROM notes ORDER BY id DESC")
-        return list(cursor.fetchall())
+        return [note_row_to_dict(row) for row in cursor.fetchall()]
 
 
-def get_note(note_id: int) -> Optional[sqlite3.Row]:
+def get_note(note_id: int) -> Optional[NoteRecord]:
     with get_connection() as connection:
         cursor = connection.cursor()
         cursor.execute(
@@ -72,7 +106,7 @@ def get_note(note_id: int) -> Optional[sqlite3.Row]:
             (note_id,),
         )
         row = cursor.fetchone()
-        return row
+        return None if row is None else note_row_to_dict(row)
 
 
 def insert_action_items(items: list[str], note_id: Optional[int] = None) -> list[int]:
@@ -89,7 +123,7 @@ def insert_action_items(items: list[str], note_id: Optional[int] = None) -> list
         return ids
 
 
-def list_action_items(note_id: Optional[int] = None) -> list[sqlite3.Row]:
+def list_action_items(note_id: Optional[int] = None) -> list[ActionItemRecord]:
     with get_connection() as connection:
         cursor = connection.cursor()
         if note_id is None:
@@ -101,10 +135,10 @@ def list_action_items(note_id: Optional[int] = None) -> list[sqlite3.Row]:
                 "SELECT id, note_id, text, done, created_at FROM action_items WHERE note_id = ? ORDER BY id DESC",
                 (note_id,),
             )
-        return list(cursor.fetchall())
+        return [action_item_row_to_dict(row) for row in cursor.fetchall()]
 
 
-def mark_action_item_done(action_item_id: int, done: bool) -> None:
+def mark_action_item_done(action_item_id: int, done: bool) -> bool:
     with get_connection() as connection:
         cursor = connection.cursor()
         cursor.execute(
@@ -112,5 +146,5 @@ def mark_action_item_done(action_item_id: int, done: bool) -> None:
             (1 if done else 0, action_item_id),
         )
         connection.commit()
-
+        return cursor.rowcount > 0
 
